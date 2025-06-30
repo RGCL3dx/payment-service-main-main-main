@@ -8,7 +8,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException; // Esta importación es CRÍTICA
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,7 +25,7 @@ public class PaymentController {
     @PostMapping("/process")
     public ResponseEntity<EntityModel<Payment>> processPayment(@RequestBody PaymentProcessingService.PaymentRequest paymentRequest) {
         Payment payment = paymentProcessingService.processPayment(paymentRequest);
-        if ("COMPLETED".equals(payment.getPaymentStatus())) {
+        if ("COMPLETADO".equals(payment.getPaymentStatus())) {
             EntityModel<Payment> resource = EntityModel.of(payment,
                     linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withSelfRel(),
                     linkTo(methodOn(PaymentController.class).getPaymentStatusByOrderId(payment.getOrderId())).withRel("payment-by-order-id"),
@@ -41,13 +41,13 @@ public class PaymentController {
     @GetMapping("/{id}")
     public EntityModel<Payment> getPaymentById(@PathVariable Long id) {
         Payment payment = paymentProcessingService.getPaymentById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found for ID: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pago no encontrado para ID: " + id));
 
         return EntityModel.of(payment,
                 linkTo(methodOn(PaymentController.class).getPaymentById(id)).withSelfRel(),
                 linkTo(methodOn(PaymentController.class).getPaymentStatusByOrderId(payment.getOrderId())).withRel("by-order-id"),
                 payment.getTransactionId() != null ?
-                    linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null,
+                        linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null,
                 linkTo(methodOn(PaymentController.class).getAllPayments()).withRel("all-payments"));
     }
 
@@ -59,7 +59,7 @@ public class PaymentController {
                     linkTo(methodOn(PaymentController.class).getPaymentStatusByOrderId(orderId)).withSelfRel(),
                     linkTo(methodOn(PaymentController.class).getPaymentById(payment.getId())).withRel("by-id"),
                     payment.getTransactionId() != null ?
-                        linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null,
+                            linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null,
                     linkTo(methodOn(PaymentController.class).getAllPayments()).withRel("all-payments"));
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
@@ -87,7 +87,7 @@ public class PaymentController {
                         linkTo(methodOn(PaymentController.class).getPaymentById(payment.getId())).withSelfRel(),
                         linkTo(methodOn(PaymentController.class).getPaymentStatusByOrderId(payment.getOrderId())).withRel("by-order-id"),
                         payment.getTransactionId() != null ?
-                            linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null))
+                                linkTo(methodOn(PaymentController.class).getPaymentByTransactionId(payment.getTransactionId())).withRel("by-transaction-id") : null))
                 .collect(Collectors.toList());
 
         return CollectionModel.of(payments,

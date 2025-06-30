@@ -33,6 +33,8 @@ class PaymentProcessingServiceTest {
 
     private Payment pagoDePrueba;
     private PaymentProcessingService.PaymentRequest solicitudDePagoDePrueba;
+    private PaymentProcessingService.PaymentRequest solicitudDePagoFallo;
+
 
     @BeforeEach
     void setUp() {
@@ -48,47 +50,83 @@ class PaymentProcessingServiceTest {
         solicitudDePagoDePrueba = new PaymentProcessingService.PaymentRequest(
                 "PEDIDO-001",
                 BigDecimal.valueOf(100.00),
-                "Detalles de Tarjeta de Crédito"
+                "detalles_tarjeta_exito"
+        );
+
+        solicitudDePagoFallo = new PaymentProcessingService.PaymentRequest(
+                "PEDIDO-002",
+                BigDecimal.valueOf(50.00),
+                "detalles_tarjeta_fallo"
         );
     }
 
     @Test
     void procesarPago_exito() {
-        when(paymentRepository.save(any(Payment.class))).thenReturn(pagoDePrueba);
+        Payment pagoExitosoSimulado = new Payment();
+        pagoExitosoSimulado.setOrderId(solicitudDePagoDePrueba.getIdPedido());
+        pagoExitosoSimulado.setAmount(solicitudDePagoDePrueba.getMonto());
+        pagoExitosoSimulado.setPaymentMethod("Tarjeta de Crédito/Débito");
+        pagoExitosoSimulado.setPaymentStatus("COMPLETADO");
+        pagoExitosoSimulado.setTransactionId(UUID.randomUUID().toString());
+        pagoExitosoSimulado.setTransactionDate(LocalDateTime.now());
+        pagoExitosoSimulado.setId(1L); 
+
+        when(paymentRepository.save(any(Payment.class))).thenReturn(pagoExitosoSimulado);
 
         Payment resultado = paymentProcessingService.processPayment(solicitudDePagoDePrueba);
 
         assertNotNull(resultado);
         assertEquals("COMPLETADO", resultado.getPaymentStatus());
+        assertEquals(solicitudDePagoDePrueba.getIdPedido(), resultado.getOrderId());
+        assertEquals(solicitudDePagoDePrueba.getMonto(), resultado.getAmount());
         assertNotNull(resultado.getTransactionId());
         verify(paymentRepository, times(1)).save(any(Payment.class));
     }
 
     @Test
     void procesarPago_fallo() {
-        PaymentProcessingService.PaymentRequest solicitudFallo = new PaymentProcessingService.PaymentRequest(
-                "PEDIDO-002",
-                BigDecimal.valueOf(50.00),
-                "detalles_tarjeta_fallo"
-        );
+        Payment pagoFallidoSimulado = new Payment();
+        pagoFallidoSimulado.setOrderId(solicitudDePagoFallo.getIdPedido());
+        pagoFallidoSimulado.setAmount(solicitudDePagoFallo.getMonto());
+        pagoFallidoSimulado.setPaymentMethod("Tarjeta de Crédito/Débito");
+        pagoFallidoSimulado.setPaymentStatus("FALLIDO");
+        pagoFallidoSimulado.setTransactionId(null);
+        pagoFallidoSimulado.setTransactionDate(LocalDateTime.now());
+        pagoFallidoSimulado.setId(2L);
 
-        Payment pagoFallido = new Payment();
-        pagoFallido.setOrderId("PEDIDO-002");
-        pagoFallido.setAmount(BigDecimal.valueOf(50.00));
-        pagoFallido.setPaymentMethod("METODO_PROCESADO");
-        pagoFallido.setPaymentStatus("FALLIDO");
-        pagoFallido.setTransactionDate(LocalDateTime.now());
-        pagoFallido.setTransactionId(null);
+        when(paymentRepository.save(any(Payment.class))).thenReturn(pagoFallidoSimulado);
 
-        when(paymentRepository.save(any(Payment.class))).thenReturn(pagoFallido);
-
-        Payment resultado = paymentProcessingService.processPayment(solicitudFallo);
+        Payment resultado = paymentProcessingService.processPayment(solicitudDePagoFallo);
 
         assertNotNull(resultado);
         assertEquals("FALLIDO", resultado.getPaymentStatus());
+        assertEquals(solicitudDePagoFallo.getIdPedido(), resultado.getOrderId());
+        assertEquals(solicitudDePagoFallo.getMonto(), resultado.getAmount());
         assertNull(resultado.getTransactionId());
         verify(paymentRepository, times(1)).save(any(Payment.class));
     }
+
+    @Test
+    void obtenerPagoPorId_encontrado() {
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(pagoDePrueba));
+
+        Optional<Payment> resultado = paymentProcessingService.getPaymentById(1L);
+
+        assertTrue(resultado.isPresent());
+        assertEquals(pagoDePrueba.getId(), resultado.get().getId());
+        verify(paymentRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    void obtenerPagoPorId_noEncontrado() {
+        when(paymentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        Optional<Payment> resultado = paymentProcessingService.getPaymentById(99L);
+
+        assertFalse(resultado.isPresent());
+        verify(paymentRepository, times(1)).findById(99L);
+    }
+
 
     @Test
     void obtenerEstadoPagoPorIdPedido_encontrado() {
@@ -109,7 +147,7 @@ class PaymentProcessingServiceTest {
             paymentProcessingService.getPaymentStatusByOrderId("PEDIDO_INEXISTENTE");
         });
 
-        assertTrue(excepcionLanzada.getMessage().contains("Payment not found for order ID: PEDIDO_INEXISTENTE"));
+        assertTrue(excepcionLanzada.getMessage().contains("Pago no encontrado para ID de pedido: PEDIDO_INEXISTENTE"));
         verify(paymentRepository, times(1)).findByOrderId("PEDIDO_INEXISTENTE");
     }
 
@@ -132,7 +170,7 @@ class PaymentProcessingServiceTest {
             paymentProcessingService.getPaymentByTransactionId("TRANS_INEXISTENTE");
         });
 
-        assertTrue(excepcionLanzada.getMessage().contains("Payment not found for transaction ID: TRANS_INEXISTENTE"));
+        assertTrue(excepcionLanzada.getMessage().contains("Pago no encontrado para ID de transacción: TRANS_INEXISTENTE"));
         verify(paymentRepository, times(1)).findByTransactionId("TRANS_INEXISTENTE");
     }
 
@@ -167,31 +205,32 @@ class PaymentProcessingServiceTest {
         detallesActualizados.setPaymentMethod("PayPal");
         detallesActualizados.setPaymentStatus("REEMBOLSADO");
         detallesActualizados.setTransactionId(pagoDePrueba.getTransactionId());
-        detallesActualizados.setTransactionDate(pagoDePrueba.getTransactionDate());
+        detallesActualizados.setTransactionDate(pagoDePrueba.getTransactionDate()); 
+
 
         when(paymentRepository.findById(1L)).thenReturn(Optional.of(pagoDePrueba));
-        
-        Payment pagoDespuesDeGuardar = new Payment();
-        pagoDespuesDeGuardar.setId(pagoDePrueba.getId());
-        pagoDespuesDeGuardar.setOrderId(pagoDePrueba.getOrderId()); 
-        pagoDespuesDeGuardar.setAmount(detallesActualizados.getAmount());
-        pagoDespuesDeGuardar.setPaymentMethod(detallesActualizados.getPaymentMethod());
-        pagoDespuesDeGuardar.setPaymentStatus(detallesActualizados.getPaymentStatus());
-        pagoDespuesDeGuardar.setTransactionId(detallesActualizados.getTransactionId());
-        pagoDespuesDeGuardar.setTransactionDate(detallesActualizados.getTransactionDate());
 
-        when(paymentRepository.save(any(Payment.class))).thenReturn(pagoDespuesDeGuardar);
+
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+            Payment savedPayment = invocation.getArgument(0);
+            assertEquals(detallesActualizados.getOrderId(), savedPayment.getOrderId());
+            assertEquals(detallesActualizados.getAmount(), savedPayment.getAmount());
+            assertEquals(detallesActualizados.getPaymentMethod(), savedPayment.getPaymentMethod());
+            assertEquals(detallesActualizados.getPaymentStatus(), savedPayment.getPaymentStatus());
+            return savedPayment; 
+        });
 
         Payment resultado = paymentProcessingService.updatePayment(1L, detallesActualizados);
 
         assertNotNull(resultado);
-        assertEquals("PEDIDO-001", resultado.getOrderId()); 
-        assertEquals(BigDecimal.valueOf(150.00), resultado.getAmount());
-        assertEquals("PayPal", resultado.getPaymentMethod());
-        assertEquals("REEMBOLSADO", resultado.getPaymentStatus());
+        assertEquals(detallesActualizados.getOrderId(), resultado.getOrderId());
+        assertEquals(detallesActualizados.getAmount(), resultado.getAmount());
+        assertEquals(detallesActualizados.getPaymentMethod(), resultado.getPaymentMethod());
+        assertEquals(detallesActualizados.getPaymentStatus(), resultado.getPaymentStatus());
         verify(paymentRepository, times(1)).findById(1L);
         verify(paymentRepository, times(1)).save(any(Payment.class));
     }
+
 
     @Test
     void actualizarPago_noEncontrado() {
@@ -204,7 +243,7 @@ class PaymentProcessingServiceTest {
             paymentProcessingService.updatePayment(99L, detallesActualizados);
         });
 
-        assertTrue(excepcionLanzada.getMessage().contains("Payment not found for ID: 99"));
+        assertTrue(excepcionLanzada.getMessage().contains("Pago no encontrado para ID: 99"));
         verify(paymentRepository, times(1)).findById(99L);
         verify(paymentRepository, never()).save(any(Payment.class));
     }
@@ -228,10 +267,9 @@ class PaymentProcessingServiceTest {
             paymentProcessingService.deletePayment(99L);
         });
 
-        assertTrue(excepcionLanzada.getMessage().contains("Payment not found for ID: 99"));
+        assertTrue(excepcionLanzada.getMessage().contains("Pago no encontrado para ID: 99"));
         verify(paymentRepository, times(1)).existsById(99L);
         verify(paymentRepository, never()).deleteById(anyLong());
-        
+
     }
-//matenme estoy chato de la vida 2 horas para que funcionara    
 }

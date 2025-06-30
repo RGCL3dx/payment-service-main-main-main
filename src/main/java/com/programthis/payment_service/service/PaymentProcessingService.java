@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -16,67 +17,83 @@ public class PaymentProcessingService {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    public static record PaymentRequest(String orderId, BigDecimal amount, String paymentMethodDetails) {}
+    public static class PaymentRequest {
+        private String idPedido;
+        private BigDecimal monto;
+        private String detallesTarjeta;
 
-    public Payment processPayment(PaymentRequest paymentRequest) {
-
-        Payment payment = new Payment();
-        payment.setOrderId(paymentRequest.orderId());
-        payment.setAmount(paymentRequest.amount());
-        // A more robust implementation would parse paymentMethodDetails to set the actual payment method
-        payment.setPaymentMethod("PROCESSED_METHOD");
-        payment.setTransactionDate(LocalDateTime.now());
-
-        boolean paymentSuccessful = simulatePaymentGatewayInteraction(paymentRequest.paymentMethodDetails());
-
-        if (paymentSuccessful) {
-            payment.setPaymentStatus("COMPLETED");
-            payment.setTransactionId(UUID.randomUUID().toString()); // Simulate actual transaction ID from gateway
-        } else {
-            payment.setPaymentStatus("FAILED");
-            // If the payment fails before getting a transaction ID, don't assign one.
-            // Or, you might store an error code from the gateway here.
+        public PaymentRequest(String idPedido, BigDecimal monto, String detallesTarjeta) {
+            this.idPedido = idPedido;
+            this.monto = monto;
+            this.detallesTarjeta = detallesTarjeta;
         }
-        return paymentRepository.save(payment);
+
+        public String getIdPedido() {
+            return idPedido;
+        }
+
+        public BigDecimal getMonto() {
+            return monto;
+        }
+
+        public String getDetallesTarjeta() {
+            return detallesTarjeta;
+        }
     }
 
-    private boolean simulatePaymentGatewayInteraction(String paymentMethodDetails) {
-        System.out.println("Simulating payment gateway interaction for: " + paymentMethodDetails);
-        // This is a simple simulation; in a real app, you'd integrate with a payment gateway API.
-        return !paymentMethodDetails.contains("fail");
+    public Payment processPayment(PaymentRequest solicitudDePago) {
+        Payment pago = new Payment();
+        pago.setOrderId(solicitudDePago.getIdPedido());
+        pago.setAmount(solicitudDePago.getMonto());
+        pago.setPaymentMethod("Tarjeta de Crédito/Débito"); // Puedes inferir esto de detallesTarjeta si es necesario
+
+        // Simulación de lógica de procesamiento de pago
+        // Aquí podrías tener lógica más compleja, como llamar a un gateway de pago
+        if (solicitudDePago.getDetallesTarjeta().contains("fallo")) { // Ejemplo simple de fallo
+            pago.setPaymentStatus("FALLIDO");
+            pago.setTransactionId(null);
+        } else {
+            pago.setPaymentStatus("COMPLETADO");
+            pago.setTransactionId(UUID.randomUUID().toString()); // Generar ID de transacción real
+        }
+        pago.setTransactionDate(LocalDateTime.now());
+
+        return paymentRepository.save(pago);
     }
 
-    public Payment getPaymentStatusByOrderId(String orderId) {
-        return paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for order ID: " + orderId));
+    public Optional<Payment> getPaymentById(Long id) {
+        return paymentRepository.findById(id);
     }
 
-    public Payment getPaymentByTransactionId(String transactionId) {
-        return paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for transaction ID: " + transactionId));
+    public Payment getPaymentStatusByOrderId(String idPedido) {
+        Optional<Payment> pago = paymentRepository.findByOrderId(idPedido);
+        return pago.orElseThrow(() -> new RuntimeException("Pago no encontrado para ID de pedido: " + idPedido));
+    }
+
+    public Payment getPaymentByTransactionId(String idTransaccion) {
+        Optional<Payment> pago = paymentRepository.findByTransactionId(idTransaccion);
+        return pago.orElseThrow(() -> new RuntimeException("Pago no encontrado para ID de transacción: " + idTransaccion));
     }
 
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }
 
-    public Payment updatePayment(Long id, Payment paymentDetails) {
-        return paymentRepository.findById(id)
-                .map(payment -> {
-                    payment.setOrderId(paymentDetails.getOrderId());
-                    payment.setAmount(paymentDetails.getAmount());
-                    payment.setPaymentMethod(paymentDetails.getPaymentMethod());
-                    payment.setPaymentStatus(paymentDetails.getPaymentStatus());
-                    payment.setTransactionId(paymentDetails.getTransactionId());
-                    payment.setTransactionDate(paymentDetails.getTransactionDate()); // Allow updating transaction date if needed
-                    return paymentRepository.save(payment);
-                })
-                .orElseThrow(() -> new RuntimeException("Payment not found for ID: " + id));
+    public Payment updatePayment(Long id, Payment detallesPago) {
+        return paymentRepository.findById(id).map(pagoExistente -> {
+            pagoExistente.setOrderId(detallesPago.getOrderId());
+            pagoExistente.setAmount(detallesPago.getAmount());
+            pagoExistente.setPaymentMethod(detallesPago.getPaymentMethod());
+            pagoExistente.setPaymentStatus(detallesPago.getPaymentStatus());
+            pagoExistente.setTransactionId(detallesPago.getTransactionId());
+            pagoExistente.setTransactionDate(detallesPago.getTransactionDate());
+            return paymentRepository.save(pagoExistente);
+        }).orElseThrow(() -> new RuntimeException("Pago no encontrado para ID: " + id));
     }
 
     public void deletePayment(Long id) {
         if (!paymentRepository.existsById(id)) {
-            throw new RuntimeException("Payment not found for ID: " + id);
+            throw new RuntimeException("Pago no encontrado para ID: " + id);
         }
         paymentRepository.deleteById(id);
     }
