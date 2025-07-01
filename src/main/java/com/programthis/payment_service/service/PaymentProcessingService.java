@@ -45,16 +45,14 @@ public class PaymentProcessingService {
         Payment pago = new Payment();
         pago.setOrderId(solicitudDePago.getIdPedido());
         pago.setAmount(solicitudDePago.getMonto());
-        pago.setPaymentMethod("Tarjeta de Crédito/Débito"); // Puedes inferir esto de detallesTarjeta si es necesario
+        pago.setPaymentMethod("Tarjeta de Crédito/Débito"); 
 
-        // Simulación de lógica de procesamiento de pago
-        // Aquí podrías tener lógica más compleja, como llamar a un gateway de pago
-        if (solicitudDePago.getDetallesTarjeta().contains("fallo")) { // Ejemplo simple de fallo
+        if (solicitudDePago.getDetallesTarjeta().contains("fallo")) { 
             pago.setPaymentStatus("FALLIDO");
             pago.setTransactionId(null);
         } else {
             pago.setPaymentStatus("COMPLETADO");
-            pago.setTransactionId(UUID.randomUUID().toString()); // Generar ID de transacción real
+            pago.setTransactionId(UUID.randomUUID().toString()); 
         }
         pago.setTransactionDate(LocalDateTime.now());
 
