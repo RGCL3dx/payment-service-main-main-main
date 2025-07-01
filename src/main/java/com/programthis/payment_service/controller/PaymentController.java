@@ -48,11 +48,10 @@ public class PaymentController {
             }
             dto.add(linkTo(methodOn(PaymentController.class).getAllPayments()).withRel("all-payments"));
         } catch (Exception e) {
-            // Manejar excepciones si la creación de enlaces falla
+           
         }
     }
 
-    // --- Endpoints de la API ---
 
     @Operation(summary = "Procesar un nuevo pago", description = "Recibe los detalles de una solicitud de pago y la procesa. Devuelve el estado del pago.")
     @ApiResponse(responseCode = "200", description = "Pago procesado exitosamente (COMPLETADO)", content = @Content(schema = @Schema(implementation = PaymentDto.class)))
