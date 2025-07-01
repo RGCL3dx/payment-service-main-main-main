@@ -85,7 +85,7 @@ public class PaymentControllerTest {
     @Test
     void procesarPago_fallo() throws Exception {
         Payment pagoFallido = new Payment();
-        pagoFallido.setId(2L); // Un ID diferente para el pago fallido
+        pagoFallido.setId(2L); 
         pagoFallido.setOrderId("PEDIDO-002");
         pagoFallido.setAmount(BigDecimal.valueOf(50.00));
         pagoFallido.setPaymentMethod("Tarjeta de Crédito/Débito");
@@ -93,7 +93,6 @@ public class PaymentControllerTest {
         pagoFallido.setTransactionId(null);
         pagoFallido.setTransactionDate(LocalDateTime.now());
 
-        // Mock del servicio para devolver el pago fallido
         given(paymentProcessingService.processPayment(any(PaymentProcessingService.PaymentRequest.class))).willReturn(pagoFallido);
 
         mockMvc.perform(post("/api/v1/payments/process")
