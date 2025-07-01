@@ -76,16 +76,16 @@ public class PaymentControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(solicitudDePagoDePrueba)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderId").value("PEDIDO-001")) 
+                .andExpect(jsonPath("$.orderId").value("PEDIDO-001"))
                 .andExpect(jsonPath("$.paymentStatus").value("COMPLETADO"))
-                .andExpect(jsonPath("$._links.self.href").exists()) 
-                .andExpect(jsonPath("$._links.payment-by-order-id.href").exists());
+                .andExpect(jsonPath("$._links.self.href").exists())
+                .andExpect(jsonPath("$._links.by-order-id.href").exists());
     }
 
     @Test
     void procesarPago_fallo() throws Exception {
         Payment pagoFallido = new Payment();
-        pagoFallido.setId(2L); 
+        pagoFallido.setId(2L);
         pagoFallido.setOrderId("PEDIDO-002");
         pagoFallido.setAmount(BigDecimal.valueOf(50.00));
         pagoFallido.setPaymentMethod("Tarjeta de Crédito/Débito");
@@ -101,7 +101,7 @@ public class PaymentControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.paymentStatus").value("FALLIDO"))
                 .andExpect(jsonPath("$.orderId").value("PEDIDO-002"))
-                .andExpect(jsonPath("$._links.self.href").exists()); 
+                .andExpect(jsonPath("$._links.self.href").exists());
     }
 
     @Test
@@ -132,7 +132,7 @@ public class PaymentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderId").value("PEDIDO-001"))
                 .andExpect(jsonPath("$._links.self.href").exists())
-                .andExpect(jsonPath("$._links.by-id.href").exists());
+                .andExpect(jsonPath("$._links.by-order-id.href").exists());
     }
 
     @Test
@@ -151,7 +151,7 @@ public class PaymentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transactionId").value(pagoDePrueba.getTransactionId()))
                 .andExpect(jsonPath("$._links.self.href").exists())
-                .andExpect(jsonPath("$._links.by-id.href").exists());
+                .andExpect(jsonPath("$._links.by-transaction-id.href").exists());
     }
 
     @Test
@@ -179,8 +179,8 @@ public class PaymentControllerTest {
 
         mockMvc.perform(get("/api/v1/payments"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$._embedded.paymentList[0].orderId").value("PEDIDO-001"))
-                .andExpect(jsonPath("$._embedded.paymentList[1].orderId").value("PEDIDO-002"))
+                .andExpect(jsonPath("$._embedded.payments[0].orderId").value("PEDIDO-001"))
+                .andExpect(jsonPath("$._embedded.payments[1].orderId").value("PEDIDO-002"))
                 .andExpect(jsonPath("$._links.self.href").exists());
     }
 
